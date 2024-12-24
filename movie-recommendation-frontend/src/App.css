@@ -1,13 +1,93 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Roboto', Arial, sans-serif;
   margin: 0;
   padding: 0;
   text-align: center;
-  background-color: #f4f4f4;
+  background: linear-gradient(to bottom, #f0f4ff, #d9e2ff);
+  color: #333;
 }
 
 h1 {
-  color: #333;
-  margin-top: 50px;
+  color: #0044cc;
+  margin: 20px 0;
+  font-size: 2.5rem;
 }
 
+form {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+input, button {
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.movie-list {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  text-align: left;
+}
+
+.movie-item {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.movie-item:last-child {
+  border-bottom: none;
+}
+
+.movie-item span {
+  font-size: 1.1rem;
+}
+
+.movie-item .genre {
+  color: #007bff;
+  font-weight: bold;
+}
+
+.movie-item .rating {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.movie-item .popularity {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+.movie-item:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+}

@@ -1,84 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './App.css';
 
-function App() {
-  const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState('');
-  const [rating, setRating] = useState('');
-  const [popularity, setPopularity] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const newMovie = { title, genre, rating, popularity };
+const App = () => {
+    // State for managing form input and movie list
+    const [title, setTitle] = useState('');
+    const [genre, setGenre] = useState('');
+    const [rating, setRating] = useState('');
+    const [popularity, setPopularity] = useState('');
+    const [movies, setMovies] = useState([]);
 
-    try {
-      const response = await fetch('http://localhost:5001/movies', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newMovie),
-      });
+    // Fetch movies when the component loads
+    useEffect(() => {
+        axios.get('http://localhost:5001/movies') // Use your backend's port
+            .then((response) => {
+                setMovies(response.data); // Update state with fetched movies
+            })
+            .catch((error) => {
+                console.error('Failed to fetch movies:', error.message);
+            });
+    }, []); // Empty dependency array to run this only once
 
-      if (response.ok) {
-        alert('Movie added successfully!');
-        setTitle('');
-        setGenre('');
-        setRating('');
-        setPopularity('');
-      } else {
-        alert('Failed to add movie.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+    // Handle form submission
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        axios.post('http://localhost:5001/movies', { title, genre, rating, popularity })
+            .then(() => {
+                alert('Movie added successfully!');
+                setTitle('');
+                setGenre('');
+                setRating('');
+                setPopularity('');
+                // Refresh the movie list
+                axios.get('http://localhost:5001/movies')
+                    .then((response) => {
+                        setMovies(response.data);
+                    })
+                    .catch((error) => {
+                        console.error('Failed to fetch movies:', error.message);
+                    });
+            })
+            .catch((error) => {
+                alert('Failed to add movie.');
+                console.error(error.message);
+            });
+    };
 
-  return (
-    <div style={{ padding: '20px' }}>
-      <h1>Movie Recommendation Platform</h1>
-      <form onSubmit={handleSubmit} style={{ marginBottom: '20px' }}>
+    return (
         <div>
-          <label>Title: </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
+            <h1>Movie Recommendation Platform</h1>
+            {/* Form to add a new movie */}
+            <form onSubmit={handleSubmit}>
+                <input
+                    type="text"
+                    placeholder="Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                />
+                <input
+                    type="text"
+                    placeholder="Genre"
+                    value={genre}
+                    onChange={(e) => setGenre(e.target.value)}
+                />
+                <input
+                    type="number"
+                    placeholder="Rating"
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                />
+                <input
+                    type="number"
+                    placeholder="Popularity"
+                    value={popularity}
+                    onChange={(e) => setPopularity(e.target.value)}
+                />
+                <button type="submit">Add Movie</button>
+            </form>
+
+            {/* Display the movie list */}
+            <div className="movie-list">
+  <h2>Movie List</h2>
+  {movies.map((movie, index) => (
+   <div key={index} className="movie-item">
+   <span className="title">{movie.title}</span> – 
+   <span className="genre">{movie.genre}</span> – 
+   <span className="rating">Rating: {movie.rating}</span> – 
+   <span className="popularity">Popularity: {movie.popularity}</span>
+ </div>
+ 
+  ))}
+</div>
+
         </div>
-        <div>
-          <label>Genre: </label>
-          <input
-            type="text"
-            value={genre}
-            onChange={(e) => setGenre(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Rating: </label>
-          <input
-            type="number"
-            step="0.1"
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Popularity: </label>
-          <input
-            type="number"
-            value={popularity}
-            onChange={(e) => setPopularity(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">Add Movie</button>
-      </form>
-    </div>
-  );
-}
+    );
+};
 
 export default App;
 
