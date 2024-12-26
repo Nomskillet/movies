@@ -2,10 +2,35 @@ const express = require("express");
 const mysql = require("mysql2");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
 
 const app = express();
 
 const cors = require("cors");
+
+
+const JWT_SECRET = "Password"; // Replace with a strong secret key
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // Extract token from "Bearer TOKEN"
+
+    if (!token) {
+        return res.status(401).json({ message: "Unauthorized access" });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: "Invalid token" });
+        }
+        req.user = user; // Attach user info to request
+        next();
+    });
+};
+
+
 
 // Middleware
 app.use(cors());
@@ -77,15 +102,16 @@ app.post("/movies", (req, res) => {
 });
 
 // Fetch All Movies
-app.get("/movies", (req, res) => {
-  const query = "SELECT * FROM movies";
-  db.query(query, (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: "Error fetching movies", error: err });
-    }
-    res.status(200).json(results);
-  });
+app.get("/movies", authenticateToken, (req, res) => {
+    const query = "SELECT * FROM movies";
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: "Error fetching movies", error: err });
+        }
+        res.status(200).json(results);
+    });
 });
+
 
 // Start Server
 const PORT = 5001; // Ensure this matches the port you're using
@@ -97,37 +123,44 @@ app.listen(PORT, () => {
 // User Login Endpoint
 app.post("/login", (req, res) => {
     const { email, password } = req.body;
-  
+
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+        return res.status(400).json({ message: "Email and password are required" });
     }
-  
+
     const query = "SELECT * FROM users WHERE email = ?";
     db.query(query, [email], async (err, results) => {
-      if (err) {
-        return res.status(500).json({ message: "Server error", error: err });
-      }
-  
-      if (results.length === 0) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-  
-      const user = results[0];
-      const isPasswordMatch = await bcrypt.compare(password, user.password);
-  
-      if (!isPasswordMatch) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-  
-      res.status(200).json({
-        message: "Login successful",
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          name: user.name,
-        },
-      });
+        if (err) {
+            return res.status(500).json({ message: "Server error", error: err });
+        }
+
+        if (results.length === 0) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        const user = results[0];
+        const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordMatch) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        // Generate JWT
+        const token = jwt.sign(
+            { id: user.id, username: user.username, email: user.email },
+            JWT_SECRET,
+            { expiresIn: "1h" } // Token expires in 1 hour
+        );
+
+        res.status(200).json({
+            message: "Login successful",
+            token, // Send token to client
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                name: user.name,
+            },
+        });
     });
-  });
-  
+});
