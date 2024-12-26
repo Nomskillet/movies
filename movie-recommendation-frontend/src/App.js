@@ -11,41 +11,58 @@ const App = () => {
   const [popularity, setPopularity] = useState("");
   const [movies, setMovies] = useState([]);
 
-  // State for managing registration form input
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  // State for managing the logged-in user and token
+  const [loggedInUser, setLoggedInUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
 
-  // State for managing the logged-in user
-  const [loggedInUser, setLoggedInUser] = useState(null);
-  const [token, setToken] = useState(null);
-
-
-  // Fetch movies and load user from localStorage when the component loads
+  // Fetch movies when the token changes
   useEffect(() => {
-    // Load the logged-in user from localStorage
-    const savedUser = localStorage.getItem("loggedInUser");
-    if (savedUser) {
-      setLoggedInUser(JSON.parse(savedUser)); // Update state with saved user
+    if (token) {
+      axios
+        .get("http://localhost:5001/movies", {
+          headers: {
+            Authorization: `Bearer ${token}`, // Updated
+          },
+        })
+        .then((response) => {
+          setMovies(response.data);
+        })
+        .catch((error) => {
+          console.error("Failed to fetch movies:", error.message);
+        });
     }
+  }, [token]);
 
-    // Fetch movies
-    axios
-      .get("http://localhost:5001/movies")
-      .then((response) => {
-        setMovies(response.data); // Update state with fetched movies
-      })
-      .catch((error) => {
-        console.error("Failed to fetch movies:", error.message);
-      });
-  }, []);
+  // Persist user and token in localStorage when they change
+  useEffect(() => {
+    if (loggedInUser && token) {
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      localStorage.setItem("token", token);
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+  }, [loggedInUser, token]);
 
   // Handle movie form submission
   const handleMovieSubmit = (e) => {
     e.preventDefault();
+    if (!token) {
+      alert("Please log in to add movies.");
+      return;
+    }
     axios
-      .post("http://localhost:5001/movies", { title, genre, rating, popularity })
+      .post(
+        "http://localhost:5001/movies",
+        { title, genre, rating, popularity },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Updated
+          },
+        }
+      )
       .then(() => {
         alert("Movie added successfully!");
         setTitle("");
@@ -54,7 +71,11 @@ const App = () => {
         setPopularity("");
         // Refresh the movie list
         axios
-          .get("http://localhost:5001/movies")
+          .get("http://localhost:5001/movies", {
+            headers: {
+              Authorization: `Bearer ${token}`, // Updated
+            },
+          })
           .then((response) => {
             setMovies(response.data);
           })
@@ -68,86 +89,29 @@ const App = () => {
       });
   };
 
-  // Handle user registration form submission
-  const handleRegister = (e) => {
-    e.preventDefault();
-    axios
-      .post("http://localhost:5001/register", {
-        username,
-        email,
-        password,
-        name,
-      })
-      .then(() => {
-        alert("User registered successfully!");
-        setUsername("");
-        setEmail("");
-        setPassword("");
-        setName("");
-      })
-      .catch((error) => {
-        console.error("Failed to register user:", error.message);
-        alert("Failed to register user.");
-      });
-  };
-
   // Handle logout
   const handleLogout = () => {
     setLoggedInUser(null);
-    localStorage.removeItem("loggedInUser");
+    setToken(null);
   };
 
   return (
     <div>
       <h1>Movie Recommendation Platform</h1>
 
-      {/* Welcome or Logout Section */}
+      {/* Show logged-in user or login form */}
       {loggedInUser ? (
         <div>
           <h2>Welcome, {loggedInUser.name}!</h2>
           <button onClick={handleLogout}>Logout</button>
         </div>
-      ) : null}
-
-      {/* User Registration Form */}
-      {!loggedInUser && (
-        <form onSubmit={handleRegister}>
-          <h2>Register</h2>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <button type="submit">Register</button>
-        </form>
-      )}
-
-      {/* Login Form */}
-      {!loggedInUser && (
-        <LoginForm setLoggedInUser={setLoggedInUser} />
+      ) : (
+        <LoginForm
+          onLogin={(user, token) => {
+            setLoggedInUser(user);
+            setToken(token);
+          }}
+        />
       )}
 
       {/* Form to add a new movie */}
@@ -187,9 +151,9 @@ const App = () => {
         <h2>Movie List</h2>
         {movies.map((movie, index) => (
           <div key={index} className="movie-item">
-            <span className="title">{movie.title}</span> – 
-            <span className="genre">{movie.genre}</span> – 
-            <span className="rating">Rating: {movie.rating}</span> – 
+            <span className="title">{movie.title}</span> –{" "}
+            <span className="genre">{movie.genre}</span> –{" "}
+            <span className="rating">Rating: {movie.rating}</span> –{" "}
             <span className="popularity">Popularity: {movie.popularity}</span>
           </div>
         ))}
