@@ -3,12 +3,11 @@ const mysql = require("mysql2");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+const cors = require("cors");
+const tmdbRoutes = require("./routes/tmdbRoutes"); // Import TMDb routes
+require("dotenv").config(); // Ensure this is at the top to load .env variables
 
 const app = express();
-
-const cors = require("cors");
-
 
 const JWT_SECRET = "Password"; // Replace with a strong secret key
 
@@ -30,13 +29,8 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-
-
 // Middleware
 app.use(cors());
-
-
-// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -46,59 +40,67 @@ const db = mysql.createConnection({
     user: "root",
     password: "Atlas",
     database: "movie_platform",
-  });
-  
+});
 
 db.connect((err) => {
-  if (err) {
-    console.error("Error connecting to the database:", err);
-    return;
-  }
-  console.log("Connected to the MySQL database.");
+    if (err) {
+        console.error("Error connecting to the database:", err);
+        return;
+    }
+    console.log("Connected to the MySQL database.");
 });
+
+// Check if TMDB_API_KEY is loaded
+// if (!process.env.TMDB_API_KEY) {
+//     console.error("TMDB_API_KEY is not set in the environment variables.");
+// } else {
+//     console.log("TMDB_API_KEY is loaded successfully.");
+// }
 
 // Routes
 
 // User Registration Endpoint
 app.post("/register", async (req, res) => {
-  const { username, password, email, name } = req.body;
+    const { username, password, email, name } = req.body;
 
-  if (!username || !password || !email || !name) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
+    if (!username || !password || !email || !name) {
+        return res.status(400).json({ message: "All fields are required" });
+    }
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const query = "INSERT INTO users (username, password, email, name) VALUES (?, ?, ?, ?)";
-    db.query(query, [username, hashedPassword, email, name], (err, result) => {
-      if (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(400).json({ message: "Username or email already exists" });
-        }
-        return res.status(500).json({ message: "Server error", error: err });
-      }
-      res.status(201).json({ message: "User registered successfully" });
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const query =
+            "INSERT INTO users (username, password, email, name) VALUES (?, ?, ?, ?)";
+        db.query(query, [username, hashedPassword, email, name], (err, result) => {
+            if (err) {
+                if (err.code === "ER_DUP_ENTRY") {
+                    return res.status(400).json({ message: "Username or email already exists" });
+                }
+                return res.status(500).json({ message: "Server error", error: err });
+            }
+            res.status(201).json({ message: "User registered successfully" });
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error });
+    }
 });
 
 // Add a Movie
 app.post("/movies", (req, res) => {
-  const { title, genre, rating, popularity } = req.body;
+    const { title, genre, rating, popularity } = req.body;
 
-  if (!title || !genre || !rating || !popularity) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
-
-  const query = "INSERT INTO movies (title, genre, rating, popularity) VALUES (?, ?, ?, ?)";
-  db.query(query, [title, genre, rating, popularity], (err, result) => {
-    if (err) {
-      return res.status(500).json({ message: "Error adding movie", error: err });
+    if (!title || !genre || !rating || !popularity) {
+        return res.status(400).json({ message: "All fields are required" });
     }
-    res.status(201).json({ message: "Movie added successfully" });
-  });
+
+    const query =
+        "INSERT INTO movies (title, genre, rating, popularity) VALUES (?, ?, ?, ?)";
+    db.query(query, [title, genre, rating, popularity], (err, result) => {
+        if (err) {
+            return res.status(500).json({ message: "Error adding movie", error: err });
+        }
+        res.status(201).json({ message: "Movie added successfully" });
+    });
 });
 
 // Fetch All Movies
@@ -111,14 +113,6 @@ app.get("/movies", authenticateToken, (req, res) => {
         res.status(200).json(results);
     });
 });
-
-
-// Start Server
-const PORT = 5001; // Ensure this matches the port you're using
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 
 // User Login Endpoint
 app.post("/login", (req, res) => {
@@ -164,3 +158,17 @@ app.post("/login", (req, res) => {
         });
     });
 });
+
+// Use the TMDb routes
+app.use("/api", tmdbRoutes);
+
+
+
+// Start Server
+const PORT = 5001; // Ensure this matches the port you're using
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
+
+console.log("TMDB_API_KEY loaded:", process.env.TMDB_API_KEY);
