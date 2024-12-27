@@ -4,49 +4,41 @@ import "./App.css";
 import LoginForm from "./components/LoginForm";
 
 const App = () => {
-  // State for managing form input and movie list
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [rating, setRating] = useState("");
   const [popularity, setPopularity] = useState("");
   const [movies, setMovies] = useState([]);
+  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [token, setToken] = useState(null);
 
-  // State for managing the logged-in user and token
-  const [loggedInUser, setLoggedInUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  // Registration state and toggle
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
 
-  // Fetch movies when the token changes
+  useEffect(() => {
+    const savedToken = localStorage.getItem("token");
+    const savedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setLoggedInUser(savedUser);
+    }
+  }, []);
+
   useEffect(() => {
     if (token) {
       axios
         .get("http://localhost:5001/movies", {
-          headers: {
-            Authorization: `Bearer ${token}`, // Updated
-          },
+          headers: { Authorization: `Bearer ${token}` },
         })
-        .then((response) => {
-          setMovies(response.data);
-        })
-        .catch((error) => {
-          console.error("Failed to fetch movies:", error.message);
-        });
+        .then((response) => setMovies(response.data))
+        .catch((error) => console.error("Failed to fetch movies:", error.message));
     }
   }, [token]);
 
-  // Persist user and token in localStorage when they change
-  useEffect(() => {
-    if (loggedInUser && token) {
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-      localStorage.setItem("token", token);
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
-  }, [loggedInUser, token]);
-
-  // Handle movie form submission
   const handleMovieSubmit = (e) => {
     e.preventDefault();
     if (!token) {
@@ -57,11 +49,7 @@ const App = () => {
       .post(
         "http://localhost:5001/movies",
         { title, genre, rating, popularity },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Updated
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       )
       .then(() => {
         alert("Movie added successfully!");
@@ -69,54 +57,119 @@ const App = () => {
         setGenre("");
         setRating("");
         setPopularity("");
-        // Refresh the movie list
-        axios
-          .get("http://localhost:5001/movies", {
-            headers: {
-              Authorization: `Bearer ${token}`, // Updated
-            },
-          })
-          .then((response) => {
-            setMovies(response.data);
-          })
-          .catch((error) => {
-            console.error("Failed to fetch movies:", error.message);
-          });
+        return axios.get("http://localhost:5001/movies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      })
+      .then((response) => setMovies(response.data))
+      .catch((error) => alert("Failed to add movie:", error.message));
+  };
+
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    setToken(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("loggedInUser");
+  };
+
+  const handleRegister = (e) => {
+    e.preventDefault();
+    axios
+      .post("http://localhost:5001/register", {
+        username,
+        email,
+        password,
+        name,
+      })
+      .then(() => {
+        alert("Registration successful! Please log in.");
+        setIsRegisterMode(false);
       })
       .catch((error) => {
-        alert("Failed to add movie.");
+        alert("Registration failed. Please try again.");
         console.error(error.message);
       });
   };
 
-  // Handle logout
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setToken(null);
-  };
-
   return (
-    <div>
-      <h1>Movie Recommendation Platform</h1>
+    <div className="app-container">
+      <h1 className="title">Movie Recommendation Platform</h1>
 
-      {/* Show logged-in user or login form */}
       {loggedInUser ? (
-        <div>
+        <div className="header">
           <h2>Welcome, {loggedInUser.name}!</h2>
-          <button onClick={handleLogout}>Logout</button>
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
+      ) : isRegisterMode ? (
+        <form className="movie-form" onSubmit={handleRegister}>
+          <h2>Register</h2>
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit">Register</button>
+          <p>
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => setIsRegisterMode(false)}
+              className="toggle-mode"
+            >
+              Log In
+            </button>
+          </p>
+        </form>
       ) : (
-        <LoginForm
-          onLogin={(user, token) => {
-            setLoggedInUser(user);
-            setToken(token);
-          }}
-        />
+        <>
+          <LoginForm
+            onLogin={(user, token) => {
+              setLoggedInUser(user);
+              setToken(token);
+              localStorage.setItem("token", token);
+              localStorage.setItem("loggedInUser", JSON.stringify(user));
+            }}
+          />
+          <p>
+            Don't have an account?{" "}
+            <button
+              type="button"
+              onClick={() => setIsRegisterMode(true)}
+              className="toggle-mode"
+            >
+              Register
+            </button>
+          </p>
+        </>
       )}
 
-      {/* Form to add a new movie */}
       {loggedInUser && (
-        <form onSubmit={handleMovieSubmit}>
+        <form className="movie-form" onSubmit={handleMovieSubmit}>
           <h2>Add Movie</h2>
           <input
             type="text"
@@ -146,17 +199,28 @@ const App = () => {
         </form>
       )}
 
-      {/* Display the movie list */}
       <div className="movie-list">
         <h2>Movie List</h2>
-        {movies.map((movie, index) => (
-          <div key={index} className="movie-item">
-            <span className="title">{movie.title}</span> –{" "}
-            <span className="genre">{movie.genre}</span> –{" "}
-            <span className="rating">Rating: {movie.rating}</span> –{" "}
-            <span className="popularity">Popularity: {movie.popularity}</span>
-          </div>
-        ))}
+        <table className="movie-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Genre</th>
+              <th>Rating</th>
+              <th>Popularity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {movies.map((movie, index) => (
+              <tr key={index}>
+                <td className="title">{movie.title}</td>
+                <td className="genre">{movie.genre}</td>
+                <td className="rating">Rating: {movie.rating}</td>
+                <td className="popularity">Popularity: {movie.popularity}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
